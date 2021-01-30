@@ -4,7 +4,7 @@ from enum import Enum
 from company import Company
 from tools import mean
 
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 
 class OrderQueue:
@@ -38,17 +38,17 @@ class OrderQueue:
         direction: int = order.direction.int()
 
         while head is not None:
-            o1, o2 = None, None
+            trade: Optional['Trade'] = None
             prev_set = False
             if order.type is OrderType.MARKET:
-                o1, o2 = Order.trade(order, head.order)
+                trade = Trade(order, head.order)
 
             if order.type is OrderType.LIMIT:
                 if direction * order.limit <= direction * head.order.limit:
-                    o1, o2 = Order.trade(order, head.order)
+                    trade = Trade(order, head.order)
 
-            if o1 is not None and o2 is not None:
-                if o2 == head.order.quantity:
+            if trade is not None:
+                if head.order.executed == head.order.quantity:
                     if prev:
                         prev.next = head.next
                         prev_set = True
@@ -56,7 +56,7 @@ class OrderQueue:
                         self.set_head(head.order.direction, head.order.company, head.next)
                         prev_set = True
 
-                if o1 == order.quantity:
+                if order.executed == order.quantity:
                     break
 
             if not prev_set:
@@ -97,13 +97,6 @@ class OrderQueue:
                 order_queue_item.order.company.bid = order_queue_item.order.limit
             if order_queue_item.order.direction is OrderDirection.SELL:
                 order_queue_item.order.company.ask = order_queue_item.order.limit
-
-    def print(self):
-        for direction, queue in self.queue.items():
-            for ticker, head in queue.items():
-                while head is not None:
-                    print([direction.name, ticker, vars(head.order)])
-                    head = head.next
 
     @classmethod
     def queue(cls) -> 'OrderQueue':
@@ -146,6 +139,7 @@ class Order:
     quantity: int
     executed: int
     limit: Decimal
+    trades: List['Trade']
 
     current_id: int = 0
     order_list: dict = {}
@@ -169,6 +163,7 @@ class Order:
         self.executed = 0
         limit = limit or self.company.price
         self.limit = limit if isinstance(limit, Decimal) else Decimal(str(limit))
+        self.trades = []
 
     def execute(self) -> None:
         Order.order_queue.execute(self)
@@ -177,17 +172,27 @@ class Order:
         return self.quantity - self.executed
 
     @classmethod
-    def get(cls, order_id: int) -> 'Order':
+    def get(cls, order_id: Optional[int] = None) -> Union['Order', dict]:
+        if order_id is None:
+            return cls.order_list
         return cls.order_list[order_id]
 
-    @staticmethod
-    def trade(order_1: 'Order', order_2: 'Order') -> [int, int]:
-        order_1_executed = min(order_1.executed + order_2.quantity - order_2.executed, order_1.quantity)
-        order_2_executed = min(order_2.executed + order_1.quantity - order_1.executed, order_2.quantity)
 
-        order_1.executed = order_1_executed
-        order_2.executed = order_2_executed
+class Trade:
+    quantity: int
+    price: Decimal
 
-        order_1.company.price = mean([order.limit for order in [order_1, order_2] if order.type is OrderType.LIMIT])
+    def __init__(self,
+                 order_1: Order,
+                 order_2: Order):
+        self.quantity = min(order_1.quantity - order_1.executed, order_2.quantity - order_2.executed)
+        try:
+            self.price = mean([order.limit for order in [order_1, order_2] if order.type is OrderType.LIMIT])
+        except ZeroDivisionError:
+            self.price = order_2.limit
 
-        return order_1_executed, order_2_executed
+        order_1.company.price = self.price
+        order_1.executed += self.quantity
+        order_1.trades.append(self)
+        order_2.executed += self.quantity
+        order_2.trades.append(self)
