@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -17,6 +18,8 @@ def to_dict(obj: Any) -> Union[dict, list, int, float, str, bool, None]:
         }
     if isinstance(obj, list):
         return [to_dict(val) for val in obj]
+    if isinstance(obj, datetime):
+        return str(obj)
     if isinstance(obj, Enum):
         return obj.name
     if isinstance(obj, Decimal):

@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -40,7 +41,7 @@ class OrderQueue:
         while head is not None:
             trade: Optional['Trade'] = None
             prev_set = False
-            if order.type is OrderType.MARKET:
+            if order.type is OrderType.MARKET or head.order.type is OrderType.MARKET:
                 trade = Trade(order, head.order)
 
             if order.type is OrderType.LIMIT:
@@ -74,7 +75,7 @@ class OrderQueue:
             return
 
         while head is not None:
-            if direction * order.limit < direction * head.order.limit:
+            if head.order.type is not OrderType.MARKET and direction * order.limit < direction * head.order.limit:
                 break
 
             prev = head
@@ -120,7 +121,7 @@ class OrderDirection(Enum):
     SELL = 1
 
     def opposite(self) -> 'OrderDirection':
-        return OrderDirection.BUY if self is OrderDirection.SELL else OrderDirection.SELL
+        return OrderDirection(-self.value)
 
     def int(self) -> int:
         return self.value
@@ -133,13 +134,14 @@ class OrderType(Enum):
 
 class Order:
     id: int
+    time: datetime
     direction: OrderDirection
     type: OrderType
     company: Company
     quantity: int
     executed: int
     limit: Decimal
-    trades: List['Trade']
+    trades: List['TradeOrder']
 
     current_id: int = 0
     order_list: dict = {}
@@ -154,7 +156,7 @@ class Order:
         self.id = Order.current_id
         Order.current_id += 1
         Order.order_list[self.id] = self
-
+        self.time = datetime.now()
         self.direction = order_direction if isinstance(order_direction, OrderDirection) else OrderDirection[
             order_direction]
         self.type = order_type if isinstance(order_type, OrderType) else OrderType[order_type]
@@ -179,17 +181,25 @@ class Order:
 
 
 class Trade:
+    orders: List[int]
     quantity: int
     price: Decimal
+    time: datetime
 
     def __init__(self,
                  order_1: Order,
                  order_2: Order):
+        self.orders = [order_1.id, order_2.id]
         self.quantity = min(order_1.quantity - order_1.executed, order_2.quantity - order_2.executed)
-        try:
-            self.price = mean([order.limit for order in [order_1, order_2] if order.type is OrderType.LIMIT])
-        except ZeroDivisionError:
+
+        if order_2.type is not OrderType.MARKET:
             self.price = order_2.limit
+        elif order_1.type is not OrderType.MARKET:
+            self.price = order_1.limit
+        else:
+            self.price = order_1.company.price
+
+        self.time = datetime.now()
 
         order_1.company.price = self.price
         order_1.executed += self.quantity
