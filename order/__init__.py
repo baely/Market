@@ -50,7 +50,7 @@ class OrderQueue:
                     if prev:
                         prev.next = head.next
                     else:
-                        self.queue[order.direction.opposite()][order.company.ticker] = head.next
+                        self.set_head(head.next)
 
                 if o1 == order.quantity:
                     break
@@ -65,7 +65,7 @@ class OrderQueue:
         order_queue_item: OrderQueueItem = OrderQueueItem(order)
 
         if head is None:
-            self.queue[order.direction][order.company.ticker] = order_queue_item
+            self.set_head(order_queue_item)
             return
 
         while head is not None:
@@ -78,8 +78,16 @@ class OrderQueue:
         if prev:
             prev.next = order_queue_item
         else:
-            self.queue[order.direction][order.company.ticker] = order_queue_item
+            self.set_head(order_queue_item)
         order_queue_item.next = head
+
+    def set_head(self, order_queue_item: 'OrderQueueItem') -> None:
+        self.queue[order_queue_item.order.direction][order_queue_item.order.company.ticker] = order_queue_item
+
+        if order_queue_item.order.direction is OrderDirection.BUY:
+            order_queue_item.order.company.bid = order_queue_item.order.limit
+        if order_queue_item.order.direction is OrderDirection.SELL:
+            order_queue_item.order.company.ask = order_queue_item.order.limit
 
     def print(self):
         for direction, queue in self.queue.items():
@@ -137,16 +145,17 @@ class Order:
     def __init__(self,
                  order_direction: OrderDirection,
                  order_type: OrderType,
-                 company: str,
+                 company: Union[Company, str],
                  quantity: int,
                  limit: Optional[Union[Decimal, str]] = None):
         self.id = Order.current_id
         Order.current_id += 1
         Order.order_list[self.id] = self
 
-        self.direction = order_direction if isinstance(order_direction, OrderDirection) else OrderDirection[order_direction]
+        self.direction = order_direction if isinstance(order_direction, OrderDirection) else OrderDirection[
+            order_direction]
         self.type = order_type if isinstance(order_type, OrderType) else OrderType[order_type]
-        self.company = Company.get(company)
+        self.company = company if isinstance(company, Company) else Company.get(company)
         self.quantity = quantity
         self.executed = 0
         limit = limit or self.company.price
@@ -154,8 +163,6 @@ class Order:
 
     def execute(self) -> None:
         Order.order_queue.execute(self)
-
-        Order.order_queue.print()
 
     def remaining(self) -> int:
         return self.quantity - self.executed

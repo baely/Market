@@ -15,13 +15,14 @@ class Company:
 
     def __init__(self,
                  name: str,
-                 ticker: str):
+                 ticker: str,
+                 price: Decimal):
         self.name = name
         self.ticker = ticker.lower()
+        self.price = price
 
         self.bid = Decimal(0)
         self.ask = Decimal(0)
-        self.price = Decimal(0)
 
         Company.companies[self.ticker] = self
 
