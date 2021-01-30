@@ -75,9 +75,9 @@ class OrderQueue:
             return
 
         while head is not None:
-            if head.order.type is not OrderType.MARKET and \
-                    (order.type is OrderType.MARKET or direction * order.limit < direction * head.order.limit):
-                break
+            if head.order.type is not OrderType.MARKET:
+                if order.type is OrderType.MARKET or direction * order.limit < direction * head.order.limit:
+                    break
 
             prev = head
             head = head.next
@@ -95,12 +95,11 @@ class OrderQueue:
         self.queue[direction][company.ticker] = order_queue_item
 
         if order_queue_item is not None:
-            if order_queue_item.order.type is not OrderType.MARKET and \
-                    order_queue_item.order.direction is OrderDirection.BUY:
-                order_queue_item.order.company.bid = order_queue_item.order.limit
-            if order_queue_item.order.type is not OrderType.MARKET and \
-                    order_queue_item.order.direction is OrderDirection.SELL:
-                order_queue_item.order.company.ask = order_queue_item.order.limit
+            if order_queue_item.order.type is not OrderType.MARKET:
+                if order_queue_item.order.direction is OrderDirection.BUY:
+                    order_queue_item.order.company.bid = order_queue_item.order.limit
+                if order_queue_item.order.direction is OrderDirection.SELL:
+                    order_queue_item.order.company.ask = order_queue_item.order.limit
 
     @classmethod
     def queue(cls) -> 'OrderQueue':
