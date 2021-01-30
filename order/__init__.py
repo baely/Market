@@ -2,6 +2,7 @@ from decimal import Decimal
 from enum import Enum
 
 from company import Company
+from tools import mean
 
 from typing import Dict, Optional, Union
 
@@ -38,6 +39,7 @@ class OrderQueue:
 
         while head is not None:
             o1, o2 = None, None
+            prev_set = False
             if order.type is OrderType.MARKET:
                 o1, o2 = Order.trade(order, head.order)
 
@@ -49,13 +51,16 @@ class OrderQueue:
                 if o2 == head.order.quantity:
                     if prev:
                         prev.next = head.next
+                        prev_set = True
                     else:
-                        self.set_head(head.next)
+                        self.set_head(head.order.direction, head.order.company, head.next)
+                        prev_set = True
 
                 if o1 == order.quantity:
                     break
 
-            prev = head
+            if not prev_set:
+                prev = head
             head = head.next
 
     def add(self, order: 'Order') -> None:
@@ -65,11 +70,11 @@ class OrderQueue:
         order_queue_item: OrderQueueItem = OrderQueueItem(order)
 
         if head is None:
-            self.set_head(order_queue_item)
+            self.set_head(order_queue_item.order.direction, order_queue_item.order.company, order_queue_item)
             return
 
         while head is not None:
-            if direction * order.limit > direction * head.order.limit:
+            if direction * order.limit < direction * head.order.limit:
                 break
 
             prev = head
@@ -78,16 +83,20 @@ class OrderQueue:
         if prev:
             prev.next = order_queue_item
         else:
-            self.set_head(order_queue_item)
+            self.set_head(order_queue_item.order.direction, order_queue_item.order.company, order_queue_item)
         order_queue_item.next = head
 
-    def set_head(self, order_queue_item: 'OrderQueueItem') -> None:
-        self.queue[order_queue_item.order.direction][order_queue_item.order.company.ticker] = order_queue_item
+    def set_head(self,
+                 direction: 'OrderDirection',
+                 company: Company,
+                 order_queue_item: Optional['OrderQueueItem']) -> None:
+        self.queue[direction][company.ticker] = order_queue_item
 
-        if order_queue_item.order.direction is OrderDirection.BUY:
-            order_queue_item.order.company.bid = order_queue_item.order.limit
-        if order_queue_item.order.direction is OrderDirection.SELL:
-            order_queue_item.order.company.ask = order_queue_item.order.limit
+        if order_queue_item is not None:
+            if order_queue_item.order.direction is OrderDirection.BUY:
+                order_queue_item.order.company.bid = order_queue_item.order.limit
+            if order_queue_item.order.direction is OrderDirection.SELL:
+                order_queue_item.order.company.ask = order_queue_item.order.limit
 
     def print(self):
         for direction, queue in self.queue.items():
@@ -114,8 +123,8 @@ class OrderQueueItem:
 
 
 class OrderDirection(Enum):
-    BUY = 1
-    SELL = -1
+    BUY = -1
+    SELL = 1
 
     def opposite(self) -> 'OrderDirection':
         return OrderDirection.BUY if self is OrderDirection.SELL else OrderDirection.SELL
@@ -178,5 +187,7 @@ class Order:
 
         order_1.executed = order_1_executed
         order_2.executed = order_2_executed
+
+        order_1.company.price = mean([order.limit for order in [order_1, order_2] if order.type is OrderType.LIMIT])
 
         return order_1_executed, order_2_executed
