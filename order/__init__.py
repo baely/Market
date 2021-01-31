@@ -3,7 +3,6 @@ from decimal import Decimal
 from enum import Enum
 
 from company import Company
-from tools import mean
 
 from typing import Dict, List, Optional, Union
 
@@ -143,7 +142,7 @@ class Order:
     quantity: int
     executed: int
     limit: Decimal
-    trades: List['TradeOrder']
+    trades: List['Trade']
 
     current_id: int = 0
     order_list: dict = {}
