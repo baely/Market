@@ -137,13 +137,13 @@ class OrderType(Enum):
 class Order:
     id: int
     time: datetime
-    portfolio: p.Portfolio
     direction: OrderDirection
     type: OrderType
     company: c.Company
     quantity: int
     executed: int
     limit: Decimal
+    avg_price: Decimal
     trades: List['Trade']
 
     current_id: int = 0
@@ -161,7 +161,6 @@ class Order:
         Order.current_id += 1
         Order.order_list[self.id] = self
         self.time = datetime.now()
-        self.portfolio = portfolio
         portfolio.add_order(self)
         self.direction = order_direction if isinstance(order_direction, OrderDirection) else OrderDirection[
             order_direction]
@@ -172,6 +171,12 @@ class Order:
         if limit is not None:
             self.limit = limit if isinstance(limit, Decimal) else Decimal(str(limit))
         self.trades = []
+        self.avg_price = Decimal(0)
+
+    def add_trade(self, trade: 'Trade') -> None:
+        self.avg_price = (self.avg_price*self.executed + trade.price*trade.quantity) / (self.executed+trade.quantity)
+        self.executed += trade.quantity
+        self.trades.append(trade)
 
     def execute(self) -> None:
         Order.order_queue.execute(self)
@@ -208,7 +213,6 @@ class Trade:
         self.time = datetime.now()
 
         order_1.company.price = self.price
-        order_1.executed += self.quantity
-        order_1.trades.append(self)
-        order_2.executed += self.quantity
-        order_2.trades.append(self)
+
+        order_1.add_trade(self)
+        order_2.add_trade(self)
