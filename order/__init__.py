@@ -2,7 +2,8 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from company import Company
+import company as c
+import portfolio as p
 
 from typing import Dict, List, Optional, Union
 
@@ -89,7 +90,7 @@ class OrderQueue:
 
     def set_head(self,
                  direction: 'OrderDirection',
-                 company: Company,
+                 company: c.Company,
                  order_queue_item: Optional['OrderQueueItem']) -> None:
         self.queue[direction][company.ticker] = order_queue_item
 
@@ -136,32 +137,36 @@ class OrderType(Enum):
 class Order:
     id: int
     time: datetime
+    portfolio: p.Portfolio
     direction: OrderDirection
     type: OrderType
-    company: Company
+    company: c.Company
     quantity: int
     executed: int
     limit: Decimal
     trades: List['Trade']
 
     current_id: int = 0
-    order_list: dict = {}
+    order_list: Dict[int, 'Order'] = {}
     order_queue: OrderQueue = OrderQueue.queue()
 
     def __init__(self,
+                 portfolio: p.Portfolio,
                  order_direction: OrderDirection,
                  order_type: OrderType,
-                 company: Union[Company, str],
+                 company: Union[c.Company, str],
                  quantity: int,
                  limit: Optional[Union[Decimal, str]] = None):
         self.id = Order.current_id
         Order.current_id += 1
         Order.order_list[self.id] = self
         self.time = datetime.now()
+        self.portfolio = portfolio
+        portfolio.add_order(self)
         self.direction = order_direction if isinstance(order_direction, OrderDirection) else OrderDirection[
             order_direction]
         self.type = order_type if isinstance(order_type, OrderType) else OrderType[order_type]
-        self.company = company if isinstance(company, Company) else Company.get(company)
+        self.company = company if isinstance(company, c.Company) else c.Company.get(company)
         self.quantity = quantity
         self.executed = 0
         if limit is not None:

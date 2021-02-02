@@ -21,8 +21,8 @@ class Company:
         self.ticker = ticker.lower()
         self.price = price
 
-        self.bid = Decimal(0)
-        self.ask = Decimal(0)
+        self.bid = price
+        self.ask = price
 
         Company.companies[self.ticker] = self
 
