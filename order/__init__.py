@@ -143,8 +143,8 @@ class Order:
     company: c.Company
     quantity: int
     executed: int
-    limit: Decimal
-    avg_price: Decimal
+    limit: Optional[Decimal]
+    value: Decimal
     trades: List['Trade']
 
     _portfolio: p.Portfolio
@@ -175,12 +175,14 @@ class Order:
         self.executed = 0
         if limit is not None:
             self.limit = limit if isinstance(limit, Decimal) else Decimal(str(limit))
+        else:
+            self.limit = None
         self.trades = []
-        self.avg_price = Decimal(0)
+        self.value = Decimal(0)
         self._report = r.Report(self)
 
     def add_trade(self, trade: 'Trade') -> None:
-        self.avg_price = (self.avg_price*self.executed + trade.price*trade.quantity) / (self.executed+trade.quantity)
+        self.value += trade.price * trade.quantity
         self.executed += trade.quantity
         self.trades.append(trade)
 
