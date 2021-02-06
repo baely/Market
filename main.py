@@ -1,7 +1,7 @@
 from decimal import Decimal
 from flask import Flask, request
 
-import company as c
+import entity as e
 import order as o
 import portfolio as p
 
@@ -38,7 +38,7 @@ def get_order(order_id: int):
 
 @app.route("/company/<string:ticker>", methods=["GET"])
 def get_company(ticker: str):
-    return to_dict(c.Company.get(ticker))
+    return to_dict(e.Company.get(ticker))
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-import company as c
+import entity as e
 import portfolio as p
 import report as r
 
@@ -91,7 +91,7 @@ class OrderQueue:
 
     def set_head(self,
                  direction: 'OrderDirection',
-                 company: c.Company,
+                 company: e.Company,
                  order_queue_item: Optional['OrderQueueItem']) -> None:
         self.queue[direction][company.ticker] = order_queue_item
 
@@ -140,7 +140,7 @@ class Order:
     time: datetime
     direction: OrderDirection
     type: OrderType
-    company: c.Company
+    company: e.Company
     quantity: int
     executed: int
     limit: Optional[Decimal]
@@ -158,7 +158,7 @@ class Order:
                  portfolio: Union[p.Portfolio, int],
                  order_direction: OrderDirection,
                  order_type: OrderType,
-                 company: Union[c.Company, str],
+                 company: Union[e.Company, str],
                  quantity: int,
                  limit: Optional[Union[Decimal, str]] = None):
         self.id = Order.current_id
@@ -170,7 +170,7 @@ class Order:
         self.direction = order_direction if isinstance(order_direction, OrderDirection) else OrderDirection[
             order_direction]
         self.type = order_type if isinstance(order_type, OrderType) else OrderType[order_type]
-        self.company = company if isinstance(company, c.Company) else c.Company.get(company)
+        self.company = company if isinstance(company, e.Company) else e.Company.get(company)
         self.quantity = quantity
         self.executed = 0
         if limit is not None:
