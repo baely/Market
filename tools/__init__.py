@@ -25,5 +25,5 @@ def to_dict(obj: Any) -> Union[dict, list, int, float, str, bool, None]:
     if isinstance(obj, Decimal):
         return float(str(obj))
     return {
-        key: to_dict(val) for key, val in obj.__dict__.items()
+        key: to_dict(val) for key, val in obj.__dict__.items() if not key.startswith("_")
     }

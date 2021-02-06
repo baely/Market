@@ -4,6 +4,7 @@ from enum import Enum
 
 import company as c
 import portfolio as p
+import report as r
 
 from typing import Dict, List, Optional, Union
 
@@ -146,12 +147,15 @@ class Order:
     avg_price: Decimal
     trades: List['Trade']
 
+    _portfolio: p.Portfolio
+    _report: r.Report
+
     current_id: int = 0
     order_list: Dict[int, 'Order'] = {}
     order_queue: OrderQueue = OrderQueue.queue()
 
     def __init__(self,
-                 portfolio: p.Portfolio,
+                 portfolio: Union[p.Portfolio, int],
                  order_direction: OrderDirection,
                  order_type: OrderType,
                  company: Union[c.Company, str],
@@ -161,7 +165,8 @@ class Order:
         Order.current_id += 1
         Order.order_list[self.id] = self
         self.time = datetime.now()
-        portfolio.add_order(self)
+        self._portfolio = portfolio if isinstance(portfolio, p.Portfolio) else p.Portfolio.get(portfolio)
+        self._portfolio.add_order(self)
         self.direction = order_direction if isinstance(order_direction, OrderDirection) else OrderDirection[
             order_direction]
         self.type = order_type if isinstance(order_type, OrderType) else OrderType[order_type]
@@ -172,11 +177,15 @@ class Order:
             self.limit = limit if isinstance(limit, Decimal) else Decimal(str(limit))
         self.trades = []
         self.avg_price = Decimal(0)
+        self._report = r.Report(self)
 
     def add_trade(self, trade: 'Trade') -> None:
         self.avg_price = (self.avg_price*self.executed + trade.price*trade.quantity) / (self.executed+trade.quantity)
         self.executed += trade.quantity
         self.trades.append(trade)
+
+        if self.executed == self.quantity:
+            self._report.generate_pdf()
 
     def execute(self) -> None:
         Order.order_queue.execute(self)
@@ -192,7 +201,7 @@ class Order:
 
 
 class Trade:
-    orders: List[int]
+    _orders: List[Order]
     quantity: int
     price: Decimal
     time: datetime
@@ -200,7 +209,7 @@ class Trade:
     def __init__(self,
                  order_1: Order,
                  order_2: Order):
-        self.orders = [order_1.id, order_2.id]
+        self._orders = [order_1, order_2]
         self.quantity = min(order_1.quantity - order_1.executed, order_2.quantity - order_2.executed)
 
         if order_2.type is not OrderType.MARKET:
